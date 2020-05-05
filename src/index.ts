@@ -1,157 +1,89 @@
 import { observable, action } from 'mobx';
-import {
-  NavigationActions,
-  NavigationContainer,
-  NavigationState,
-  NavigationAction,
-  NavigationBackActionPayload,
-  NavigationInitActionPayload,
-  NavigationNavigateActionPayload,
-  NavigationResetActionPayload,
-  NavigationSetParamsActionPayload,
-  NavigationUriAction,
-  NavigationUriActionPayload,
-} from 'react-navigation';
+import { NavigationScreenProp, NavigationState, NavigationContainerComponent, NavigationAction, NavigationParams, NavigationNavigateAction } from 'react-navigation';
 
-class Navigation {
-  constructor(Navigator: NavigationContainer) {
-    this.Navigator = Navigator;
-  }
+export default class Navigation {
+  @observable.ref navigation: NavigationScreenProp<NavigationState> | undefined;
 
-  Navigator: NavigationContainer;
-
-  @observable.ref state: NavigationState = this.Navigator.router.getStateForAction(NavigationActions.init(), null);
-
-  subscribers = new Set();
-
-  @action.bound dispatch(action: NavigationAction & any) {
-    const lastState = this.state;
-    const state = this.Navigator.router.getStateForAction(action, lastState);
-    this.subscribers.forEach((subscriber) => {
-      subscriber({
-        type: 'action',
-        action,
-        state,
-        lastState,
-      });
-    });
-    this.state = state;
-  }
-
-  addListener = (eventName: string, handler: () => {}) => {
-    if (eventName !== 'action') {
-      return { remove() {} };
+  @action.bound createRef(ref: NavigationContainerComponent & { _navigation: NavigationScreenProp<NavigationState> }) {
+    if(ref){
+      this.navigation = ref._navigation;
     }
-    this.subscribers.add(handler);
-    return {
-      remove: () => {
-        this.subscribers.delete(handler);
-      },
-    };
   }
 
-  /**
-   * original actions
-   */
-
-  back = (payload: NavigationBackActionPayload) => {
-    const action: NavigationAction = NavigationActions.back(payload);
-    this.dispatch(action);
-  }
-
-  init = (payload: NavigationInitActionPayload) => {
-    const action: NavigationAction = NavigationActions.init(payload);
-    this.dispatch(action);
-  }
-
-  navigate = (payload: NavigationNavigateActionPayload) => {
-    const action: NavigationAction = NavigationActions.navigate(payload);
-    this.dispatch(action);
-  }
-
-  pop = (payload: any) => {
-    const action = {
-      type: 'Navigation/POP',
-      n: payload && payload.n,
-      immediate: payload && payload.immediate,
-    };
-    this.dispatch(action);
-  }
-
-  popToTop = (payload: any) => {
-    const action = {
-      type: 'Navigation/POP_TO_TOP',
-      immediate: payload && payload.immediate,
-    };
-    this.dispatch(action);
-  }
-
-  push = (payload: any) => {
-    const action: any = {
-      type: 'Navigation/PUSH',
-      routeName: payload.routeName,
-    };
-    if (payload.params) {
-      action.params = payload.params;
+  @action.bound dispatch(action: NavigationAction) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
     }
-    if (payload.action) {
-      action.action = payload.action;
+    this.navigation.dispatch(action);
+  }
+
+  @action.bound getParam(paramName: string, fallback?: NavigationParams) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
     }
-    this.dispatch(action);
+    this.navigation.getParam(paramName, fallback);
   }
 
-  reset = (payload: NavigationResetActionPayload) => {
-    const action: NavigationAction = NavigationActions.reset(payload);
-    this.dispatch(action);
+  @action.bound setParams(newParams: NavigationParams) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.setParams(newParams);
   }
 
-  replace = (payload: any) => {
-    const action = {
-      type: 'Navigation/REPLACE',
-      key: payload.key,
-      newKey: payload.newKey,
-      params: payload.params,
-      action: payload.action,
-      routeName: payload.routeName,
-      immediate: payload.immediate,
-    };
-    this.dispatch(action);
+  @action.bound navigate(
+    routeNameOrOptions: string | {
+      routeName: string | {
+        routeName: string;
+        params?: NavigationParams;
+        action?: NavigationAction;
+        key?: string;
+      };
+      params?: NavigationParams;
+      action?: NavigationAction;
+      key?: string;
+    },
+    params?: NavigationParams,
+    action?: NavigationAction,
+  ) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.navigate(routeNameOrOptions as string, params, action);
   }
 
-  setParams = (payload: NavigationSetParamsActionPayload) => {
-    const action: NavigationAction = NavigationActions.setParams(payload);
-    this.dispatch(action);
+  @action.bound push(routeName: string, params?: NavigationParams, action?: NavigationAction) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.push(routeName, params, action as NavigationNavigateAction);
   }
 
-  uri = (payload: NavigationUriActionPayload) => {
-    const action: NavigationUriAction = {
-      type: 'Navigation/URI',
-      uri: payload.uri,
-    };
-    this.dispatch(action);
+  @action.bound replace(routeName: string, params?: NavigationParams, action?: NavigationAction) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.replace(routeName, params, action as NavigationNavigateAction);
   }
 
-  completeTransition = (payload: any) => {
-    const action = {
-      type: 'Navigation/COMPLETE_TRANSITION',
-      key: payload && payload.key,
-    };
-    this.dispatch(action);
+  @action.bound goBack(routeKey?: string | null) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.goBack(routeKey);
   }
 
-  /**
-   * additional actions
-   */
+  @action.bound pop(n?: number, params?: { immediate?: boolean }) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.pop(n, params);
+  }
 
-  resetTo = (payload: NavigationNavigateActionPayload) => {
-    const action: NavigationAction = NavigationActions.reset({
-      index: 0,
-      actions: [
-        NavigationActions.navigate(payload),
-      ],
-    });
-    this.dispatch(action);
+  @action.bound popToTop(params?: { immediate?: boolean }) {
+    if (!this.navigation) {
+      throw new Error('please create navigation refs first.');
+    }
+    this.navigation.popToTop(params);
   }
 }
-
-export default Navigation;
